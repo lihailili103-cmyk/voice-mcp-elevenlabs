@@ -42,27 +42,28 @@ function getPlayerHTML(botName: string): string {
   <title>Voice Player</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
+    html, body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: transparent;
-      padding: 8px;
+      height: auto;
+      overflow: hidden;
     }
+    body { padding: 6px; }
     .container {
       background: #fff;
-      border-radius: 16px;
-      padding: 14px 16px;
+      border-radius: 12px;
+      padding: 10px 12px;
       max-width: 100%;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
     .player {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 4px 0;
+      gap: 10px;
     }
     .play-btn {
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       border: none;
       background: #f5f5f5;
@@ -71,18 +72,16 @@ function getPlayerHTML(botName: string): string {
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      transition: background 0.2s;
     }
-    .play-btn:hover { background: #eee; }
     .play-btn:active { background: #e0e0e0; }
-    .play-btn svg { width: 14px; height: 14px; fill: #333; }
+    .play-btn svg { width: 13px; height: 13px; fill: #333; }
     .play-btn.playing svg { fill: #07c160; }
     .waveform {
       flex: 1;
       display: flex;
       align-items: center;
       gap: 2px;
-      height: 24px;
+      height: 22px;
     }
     .wave-bar {
       width: 3px;
@@ -92,50 +91,36 @@ function getPlayerHTML(botName: string): string {
     }
     .wave-bar.active { background: #07c160; }
     .duration {
-      font-size: 13px;
+      font-size: 12px;
       color: #999;
-      min-width: 36px;
+      min-width: 32px;
       text-align: right;
     }
-    .toggle-btn {
-      background: none;
-      border: none;
-      color: #07c160;
-      font-size: 12px;
-      cursor: pointer;
-      padding: 8px 0 4px 0;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .toggle-btn:hover { text-decoration: underline; }
-    .toggle-btn .arrow {
-      display: inline-block;
-      transition: transform 0.2s;
-      font-size: 10px;
-    }
-    .toggle-btn.expanded .arrow { transform: rotate(90deg); }
-    .text-bubble {
-      background: #f7f7f7;
-      border-radius: 8px;
-      padding: 10px 12px;
-      margin-top: 8px;
+    .transcript {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(0,0,0,0.06);
       font-size: 14px;
-      line-height: 1.6;
+      line-height: 1.5;
       color: #333;
-      display: block;
+      word-break: break-word;
+      white-space: pre-wrap;
     }
-    .text-bubble.hidden { display: none; }
+    /* Only used when the host caps our height below the content height */
+    .transcript.capped {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
     .loading {
       text-align: center;
       color: #999;
       font-size: 13px;
-      padding: 16px;
+      padding: 12px;
     }
     .error {
       color: #fa5151;
       background: #fff2f2;
-      padding: 10px;
+      padding: 8px;
       border-radius: 8px;
       font-size: 13px;
     }
@@ -146,8 +131,7 @@ function getPlayerHTML(botName: string): string {
       .wave-bar { background: #555; }
       .wave-bar.active { background: #4cd964; }
       .duration { color: #888; }
-      .text-bubble { background: #3a3a3a; color: #e0e0e0; }
-      .toggle-btn { color: #4cd964; }
+      .transcript { color: #e0e0e0; border-top-color: rgba(255,255,255,0.08); }
     }
   </style>
 </head>
@@ -196,10 +180,7 @@ function getPlayerHTML(botName: string): string {
           '<div class="waveform" id="waveform">' + createWaveform() + '</div>' +
           '<span class="duration" id="duration">0:00</span>' +
         '</div>' +
-        '<button class="toggle-btn expanded" id="toggleBtn">' +
-          '<span class="arrow">▶</span> Hide transcript' +
-        '</button>' +
-        '<div class="text-bubble" id="textBubble">' + escapeHtml(text) + '</div>' +
+        '<div class="transcript">' + escapeHtml(text) + '</div>' +
         '<audio id="audio" src="' + audioUrl + '" preload="metadata"></audio>';
 
       audio = document.getElementById('audio');
@@ -208,8 +189,6 @@ function getPlayerHTML(botName: string): string {
       const durationEl = document.getElementById('duration');
       const waveform = document.getElementById('waveform');
       const bars = waveform.querySelectorAll('.wave-bar');
-      const toggleBtn = document.getElementById('toggleBtn');
-      const textBubble = document.getElementById('textBubble');
 
       audio.addEventListener('loadedmetadata', function() {
         durationEl.textContent = formatTime(audio.duration);
@@ -248,14 +227,70 @@ function getPlayerHTML(botName: string): string {
         bars.forEach((b, i) => b.classList.toggle('active', i < activeCount));
       });
 
-      toggleBtn.addEventListener('click', function() {
-        const isHidden = textBubble.classList.toggle('hidden');
-        toggleBtn.classList.toggle('expanded', !isHidden);
-        toggleBtn.innerHTML = isHidden
-          ? '<span class="arrow">▶</span> Show transcript'
-          : '<span class="arrow">▶</span> Hide transcript';
+      notifyHeight();
+      setTimeout(notifyHeight, 100);
+      setTimeout(notifyHeight, 500);
+    }
+
+    // MCP Apps spec: the app reports its content size via
+    // ui/notifications/size-changed and the host resizes the iframe.
+    let maxHeight = null;
+    let lastW = 0, lastH = 0, resizeQueued = false;
+
+    function measureHeight() {
+      const root = document.documentElement;
+      const prev = root.style.height;
+      root.style.height = 'max-content';
+      const h = Math.ceil(root.getBoundingClientRect().height);
+      root.style.height = prev;
+      return h;
+    }
+
+    function applyHeightCap() {
+      const t = document.querySelector('.transcript');
+      if (!t) return;
+      t.classList.remove('capped');
+      t.style.maxHeight = '';
+      if (maxHeight && measureHeight() > maxHeight) {
+        t.classList.add('capped');
+        // Two passes: the first shrink can shift padding/borders slightly
+        for (let i = 0; i < 2; i++) {
+          const overflow = measureHeight() - maxHeight;
+          if (overflow <= 0) break;
+          t.style.maxHeight = Math.max(60, t.offsetHeight - overflow) + 'px';
+        }
+      }
+    }
+
+    function notifyHeight() {
+      if (resizeQueued) return;
+      resizeQueued = true;
+      requestAnimationFrame(function() {
+        resizeQueued = false;
+        applyHeightCap();
+        const w = Math.ceil(window.innerWidth);
+        const h = measureHeight();
+        if (w === lastW && h === lastH) return;
+        lastW = w; lastH = h;
+        sendToHost('ui/notifications/size-changed', { width: w, height: h });
       });
     }
+
+    function readContainer(ctx) {
+      const d = ctx && ctx.containerDimensions;
+      if (!d) return;
+      if (typeof d.maxHeight === 'number') maxHeight = d.maxHeight;
+      else if (typeof d.height === 'number') maxHeight = d.height;
+      lastH = 0;
+      notifyHeight();
+    }
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(notifyHeight);
+      ro.observe(document.documentElement);
+      ro.observe(document.body);
+    }
+    window.addEventListener('resize', notifyHeight);
 
     function animateWave(bars, playing) {
       if (waveInterval) clearInterval(waveInterval);
@@ -297,11 +332,17 @@ function getPlayerHTML(botName: string): string {
         if ('result' in msg) {
           hostInitialized = true;
           sendToHost('ui/notifications/initialized', {});
+          readContainer(msg.result && msg.result.hostContext);
+          lastH = 0;
+          notifyHeight();
         }
         return;
       }
 
       if (msg.jsonrpc === '2.0') {
+        if (msg.method === 'ui/notifications/host-context-changed') {
+          readContainer(msg.params);
+        }
         if (msg.method === 'ui/notifications/tool-input') {
           contentEl.innerHTML = '<div class="loading">Generating voice...</div>';
         }
@@ -316,7 +357,7 @@ function getPlayerHTML(botName: string): string {
 
     sendToHost('ui/initialize', {
       protocolVersion: '2026-01-26',
-      appInfo: { name: 'voice-mcp', version: '1.1.0' },
+      appInfo: { name: 'voice-mcp', version: '1.2.0' },
       appCapabilities: { availableDisplayModes: ['inline'] }
     }, 1);
   </script>
@@ -341,12 +382,10 @@ async function generateAudio(env: Env, text: string): Promise<{ success: boolean
       },
       body: JSON.stringify({
         text: text,
-        model_id: 'eleven_multilingual_v2',
+        model_id: 'eleven_flash_v2_5',
         voice_settings: {
           stability: 0.5,
           similarity_boost: 0.75,
-          style: 0.0,
-          use_speaker_boost: true,
         },
       }),
     });
