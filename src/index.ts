@@ -382,10 +382,13 @@ async function generateAudio(env: Env, text: string): Promise<{ success: boolean
       },
       body: JSON.stringify({
         text: text,
-        model_id: 'eleven_flash_v2_5',
+        model_id: 'eleven_multilingual_v2',
         voice_settings: {
-          stability: 0.5,
+          stability: 0.30,
           similarity_boost: 0.75,
+          style: 0.90,
+          use_speaker_boost: true,
+          speed: 1.20,
         },
       }),
     });
@@ -417,7 +420,7 @@ async function generateAudio(env: Env, text: string): Promise<{ success: boolean
 // =============================================================================
 
 function createVoiceServer(env: Env): McpServer {
-  const botName = env.BOT_NAME || 'AI';
+  const botName = env.BOT_NAME || '砚川';
   const PLAYER_HTML = getPlayerHTML(botName);
 
   const server = new McpServer({
@@ -565,7 +568,7 @@ export default {
 
     // Landing page
     if (path === '/' || path === '') {
-      const botName = env.BOT_NAME || 'AI';
+      const botName = env.BOT_NAME || '砚川';
       return new Response(
         `<!DOCTYPE html>
 <html><head>
