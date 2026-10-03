@@ -1,3 +1,4 @@
+// Trigger fresh Cloudflare build
 {
   "name": "yanchuan-voice-mcp",
   "main": "src/index.ts",
