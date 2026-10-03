@@ -386,9 +386,6 @@ async function generateAudio(env: Env, text: string): Promise<{ success: boolean
         voice_settings: {
           stability: 0.30,
           similarity_boost: 0.75,
-          style: 0.90,
-          use_speaker_boost: true,
-          speed: 1.20,
         },
       }),
     });
