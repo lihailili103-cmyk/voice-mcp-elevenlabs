@@ -1,5 +1,5 @@
 {
-  "name": "yanchuan-voice-mcp",
+  "name": "延川之声-MCP",
   "main": "src/index.ts",
   "compatibility_date": "2025-04-01",
   "compatibility_flags": ["nodejs_compat"],
